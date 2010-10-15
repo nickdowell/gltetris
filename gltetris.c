@@ -6,6 +6,8 @@
 #include <sys/timeb.h>
 #include <unistd.h>
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
 #define GLUT_KEY_ESC 27
 
 #define GRID_SIZE 20.0f
@@ -14,6 +16,8 @@
 
 #define CLIP(val, min, max) do { if (val < (min)) { val = (min); } else if (val > (max)) { val = (max); } } while (0)
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
 static int grid_fill[GRID_WIDTH][GRID_HEIGHT];
 
 static int cur_x = 0;
@@ -21,7 +25,14 @@ static int cur_y = 0;
 
 static int cur_shape[4][4];
 
+static int game_over = 0;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
 static void new_game();
+static int  shape_fits(int x, int y);
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 static void rotate_shape()
 {
@@ -92,9 +103,37 @@ static void new_shape()
 				memcpy(cur_shape, shape, sizeof(shape));
 			}
 			break;
+		case 5:
+			{
+				int shape[4][4] = {
+					{ 0, 1, 0, 0 },
+					{ 0, 1, 0, 0 },
+					{ 0, 1, 1, 0 },
+					{ 0, 0, 0, 0 },
+				};
+				memcpy(cur_shape, shape, sizeof(shape));
+			}
+			break;
+		case 6:
+			{
+				int shape[4][4] = {
+					{ 0, 0, 1, 0 },
+					{ 0, 0, 1, 0 },
+					{ 0, 1, 1, 0 },
+					{ 0, 0, 0, 0 },
+				};
+				memcpy(cur_shape, shape, sizeof(shape));
+			}
+			break;
 	}
 	cur_y = GRID_HEIGHT - 1;
 	cur_x = GRID_WIDTH / 2;
+
+	if (!shape_fits(cur_x, cur_y)) {
+		memset(cur_shape, sizeof(cur_shape), 0);
+		game_over = 1;
+		glutSetWindowTitle("GAME OVER :-P");
+	}
 }
 
 static int shape_fits(int off_x, int off_y)
@@ -128,6 +167,31 @@ static void burn_shape()
 			}
 		}
 	}
+
+	// now look for rows that have been completed!
+	
+	for (int y=0; y<GRID_HEIGHT; y++) {
+		int row_full = 1;
+		for (int x=0; x<GRID_WIDTH; x++) {
+			if (!grid_fill[x][y]) {
+				row_full = 0;
+				break;
+			}
+		}
+		if (row_full) {
+			// clear row
+			for (int x=0; x<GRID_WIDTH; x++)
+				grid_fill[x][y] = 0;
+			// drop rows down
+			for (int i=y; i<GRID_HEIGHT-1; i++) {
+				for (int x=0; x<GRID_WIDTH; x++) {
+					grid_fill[x][i] = grid_fill[x][i+1];
+					grid_fill[x][i+1] = 0;
+				}
+			}
+			y--; // process same row again
+		}
+	}
 }
 
 static void glut_keyboard(unsigned char key, int x, int y)
@@ -157,16 +221,19 @@ static void do_move_x(int off_x)
 
 static void do_move_down()
 {
-	cur_y --;
 	if (shape_landed()) {
 		// current piece has hit the bottom; now out of play
 		burn_shape();
 		new_shape();
 	}
+	cur_y --;
 }
 
 static void glut_special(int key, int x, int y)
 {
+	if (game_over)
+		return;
+
 	switch (key) {
 		case GLUT_KEY_UP: do_rotate(); break;
 		case GLUT_KEY_LEFT: do_move_x(-1); break;
@@ -229,6 +296,8 @@ static void idle()
 
 static void new_game()
 {
+	game_over = 0;
+	glutSetWindowTitle("TETRIS!");
 	memset(grid_fill, sizeof(grid_fill), 0);
 	memset(cur_shape, sizeof(cur_shape), 0);
 	new_shape();
