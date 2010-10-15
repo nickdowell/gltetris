@@ -12,13 +12,13 @@
 
 #define GLUT_KEY_ESC 27
 
-#define GRID_SIZE 20.0f
+#define GRID_SIZE 40.0f
 #define GRID_WIDTH 10
-#define GRID_HEIGHT 14
+#define GRID_HEIGHT 16
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-static int grid_fill[GRID_WIDTH][GRID_HEIGHT];
+static int grid_fill [GRID_WIDTH] [GRID_HEIGHT];
 
 static int cur_x = 0;
 static int cur_y = 0;
@@ -26,15 +26,18 @@ static int cur_y = 0;
 static int cur_shape[4][4];
 
 static int game_over = 0;
-
+static int game_score = 0;
 static int game_time_unit = 0; // time (in usecs) between automatic dropping
 
-static int move_number = 0;
+static int timer_generation = 0;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 static void new_game();
+
 static int  shape_fits(int x, int y);
+
+static void game_update_title();
 
 static void glut_timer_callback(int value);
 static void glut_keyboard_callback(unsigned char key, int x, int y);
@@ -55,14 +58,14 @@ static void rotate_shape()
 
 static void new_shape()
 {
-	switch (rand() % 5) {
+	switch (rand() % 7) {
 		case 0:
 			{
 				int shape[4][4] = {
-					{ 1, 0, 0, 0 },
-					{ 1, 0, 0, 0 },
-					{ 1, 0, 0, 0 },
-					{ 1, 0, 0, 0 },
+					{ 0, 1, 0, 0 },
+					{ 0, 1, 0, 0 },
+					{ 0, 1, 0, 0 },
+					{ 0, 1, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
 			}
@@ -81,9 +84,9 @@ static void new_shape()
 		case 2:
 			{
 				int shape[4][4] = {
+					{ 0, 0, 0, 0 },
 					{ 1, 1, 1, 0 },
 					{ 0, 1, 0, 0 },
-					{ 0, 0, 0, 0 },
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
@@ -92,9 +95,9 @@ static void new_shape()
 		case 3:
 			{
 				int shape[4][4] = {
-					{ 1, 1, 0, 0 },
-					{ 0, 1, 1, 0 },
 					{ 0, 0, 0, 0 },
+					{ 0, 1, 1, 0 },
+					{ 0, 0, 1, 1 },
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
@@ -103,9 +106,9 @@ static void new_shape()
 		case 4:
 			{
 				int shape[4][4] = {
+					{ 0, 0, 0, 0 },
 					{ 0, 1, 1, 0 },
 					{ 1, 1, 0, 0 },
-					{ 0, 0, 0, 0 },
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
@@ -134,13 +137,17 @@ static void new_shape()
 			}
 			break;
 	}
-	cur_y = GRID_HEIGHT - 1;
-	cur_x = GRID_WIDTH / 2;
 
+	rotate_shape();
+
+	cur_x = GRID_WIDTH / 2 - 2;
+	cur_y = GRID_HEIGHT + 1;
+	if (!shape_fits(cur_x, cur_y)) cur_y --;
+	if (!shape_fits(cur_x, cur_y)) cur_y --;
 	if (!shape_fits(cur_x, cur_y)) {
 		memset(cur_shape, sizeof(cur_shape), 0);
 		game_over = 1;
-		glutSetWindowTitle("GAME OVER :-P");
+		game_update_title();
 	}
 }
 
@@ -166,18 +173,19 @@ static int shape_landed()
 	return shape_fits(cur_x, cur_y - 1) ? 0 : 1;
 }
 
-static void burn_shape()
+static void game_clear_all_rows()
 {
-	for (int x=0; x<4; x++) {
-		for (int y=0; y<4; y++) {
-			if (cur_shape[x][y]) {
-				grid_fill[cur_x+x][cur_y-y] = 1;
-			}
+	for (int y=0; y<GRID_HEIGHT; y++) {
+		for (int x=0; x<GRID_WIDTH; x++) {
+			grid_fill[x][y] = 0;
 		}
 	}
+}
 
-	// now look for rows that have been completed!
-	
+static int game_clear_rows()
+{
+	int rows_cleared = 0;
+
 	for (int y=0; y<GRID_HEIGHT; y++) {
 		int row_full = 1;
 		for (int x=0; x<GRID_WIDTH; x++) {
@@ -187,6 +195,7 @@ static void burn_shape()
 			}
 		}
 		if (row_full) {
+			rows_cleared ++;
 			// clear row
 			for (int x=0; x<GRID_WIDTH; x++)
 				grid_fill[x][y] = 0;
@@ -200,6 +209,31 @@ static void burn_shape()
 			y--; // process same row again
 		}
 	}
+
+	if (rows_cleared) {
+		int points = (1 << (rows_cleared - 1));
+		printf("%d points for %d rows\n", points, rows_cleared);
+		game_score += points;
+		game_update_title();
+	}
+
+	return rows_cleared;
+}
+
+static void burn_shape()
+{
+	for (int x=0; x<4; x++) {
+		for (int y=0; y<4; y++) {
+			if (cur_shape[x][y]) {
+				grid_fill[cur_x+x][cur_y-y] = 1;
+			}
+		}
+	}
+
+	game_clear_rows();
+
+	// increase the game speed!
+	game_time_unit -= game_time_unit / 100;
 }
 
 static void glut_keyboard_callback(unsigned char key, int x, int y)
@@ -235,9 +269,9 @@ static void do_move_down()
 		new_shape();
 	}
 	cur_y --;
-	move_number ++;
-	// reschedule auto-drop timer
-	glutTimerFunc(game_time_unit, glut_timer_callback, move_number);
+
+	timer_generation ++; // reschedule auto-drop timer
+	glutTimerFunc(game_time_unit, glut_timer_callback, timer_generation);
 }
 
 static void glut_specialkey_callback(int key, int x, int y)
@@ -281,7 +315,7 @@ static void draw_shape()
 	}
 }
 
-static void display()
+static void glut_display_callback()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -294,10 +328,14 @@ static void display()
 		}
 	}
 	
-	glColor3f(1.0, 0.0, 0.0);
-	draw_shape();
+	if (!game_over) {
+		glColor3f(1.0, 0.0, 0.0);
+		draw_shape();
+	}
 
 	glFlush();
+
+	glutSwapBuffers();
 }
 
 static void glut_timer_callback(int value)
@@ -305,29 +343,33 @@ static void glut_timer_callback(int value)
 	if (game_over)
 		return;
 
-	if (value != move_number)
+	if (value != timer_generation)
 		return;
 
 	do_move_down();
 
-	// increase the game speed!
-	game_time_unit -= MSEC_PER_SEC / 100;
-
-	glutTimerFunc(game_time_unit, glut_timer_callback, move_number);
+	glutTimerFunc(game_time_unit, glut_timer_callback, ++timer_generation);
 	glutPostRedisplay();
+}
+
+static void game_update_title()
+{
+	char title[32] = "";
+	sprintf(title, "TETRIS   score = %d  %s", game_score, game_over ? "[ GAME OVER ]" : "");
+	glutSetWindowTitle(title);
 }
 
 static void new_game()
 {
 	game_over = 0;
-	glutSetWindowTitle("TETRIS!");
-	memset(grid_fill, sizeof(grid_fill), 0);
-	memset(cur_shape, sizeof(cur_shape), 0);
-	new_shape();
-	move_number = 0;
+	game_score = 0;
+	game_update_title();
+	timer_generation ++;
 	game_time_unit = MSEC_PER_SEC;
-	glutTimerFunc(game_time_unit, glut_timer_callback, move_number);
+	game_clear_all_rows();
+	glutTimerFunc(game_time_unit, glut_timer_callback, timer_generation);
 	glutPostRedisplay();
+	new_shape();
 }
 
 static void init()
@@ -348,9 +390,9 @@ int main(int argc, char *argv[])
 	glutInit(&argc, argv);
 	glutInitWindowSize(GRID_WIDTH * GRID_SIZE, GRID_HEIGHT * GRID_SIZE);
 	glutInitWindowPosition(0, 0);
-	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 	glutCreateWindow("gltetris");
-	glutDisplayFunc(display);
+	glutDisplayFunc(glut_display_callback);
 	glutKeyboardFunc(glut_keyboard_callback);
 	glutSpecialFunc(glut_specialkey_callback);
 	init();
