@@ -14,8 +14,6 @@
 #define GRID_WIDTH 10
 #define GRID_HEIGHT 14
 
-#define CLIP(val, min, max) do { if (val < (min)) { val = (min); } else if (val > (max)) { val = (max); } } while (0)
-
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 static int grid_fill[GRID_WIDTH][GRID_HEIGHT];
