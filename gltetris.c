@@ -97,18 +97,26 @@ static void new_shape()
 	cur_x = GRID_WIDTH / 2;
 }
 
-static int shape_landed()
+static int shape_fits(int off_x, int off_y)
 {
 	for (int x=0; x<4; x++) {
 		for (int y=0; y<4; y++) {
 			if (cur_shape[x][y]) {
-				if (cur_y-y == 0 || grid_fill[cur_x+x][cur_y-1-y]) {
-					return 1;
-				}
+				int abs_x = off_x + x;
+				int abs_y = off_y - y;
+				if ((abs_y < 0 || abs_y >= GRID_HEIGHT) ||
+					(abs_x < 0 || abs_x >= GRID_WIDTH) ||
+					(grid_fill[abs_x][abs_y] == 1))
+					return 0;
 			}
 		}
 	}
-	return 0;
+	return 1;
+}
+
+static int shape_landed()
+{
+	return shape_fits(cur_x, cur_y - 1) ? 0 : 1;
 }
 
 static void burn_shape()
@@ -116,7 +124,7 @@ static void burn_shape()
 	for (int x=0; x<4; x++) {
 		for (int y=0; y<4; y++) {
 			if (cur_shape[x][y]) {
-				grid_fill[cur_x-x][cur_y-y] = 1;
+				grid_fill[cur_x+x][cur_y-y] = 1;
 			}
 		}
 	}
@@ -131,23 +139,40 @@ static void glut_keyboard(unsigned char key, int x, int y)
 	}
 }
 
-static void glut_special(int key, int x, int y)
+static void do_rotate()
 {
-	switch (key) {
-		case GLUT_KEY_UP: rotate_shape(); break;
-		case GLUT_KEY_LEFT: cur_x --; break;
-		case GLUT_KEY_DOWN: cur_y --; break;
-		case GLUT_KEY_RIGHT: cur_x ++; break;
-		default: return;
-	}
-	
-	CLIP(cur_x, 0, GRID_WIDTH  - 1);
-	CLIP(cur_y, 0, GRID_HEIGHT - 1);
+	int save_shape[4][4];
+	memcpy(save_shape, cur_shape, sizeof(cur_shape));
+	rotate_shape();
+	if (!shape_fits(cur_x, cur_y))
+		memcpy(cur_shape, save_shape, sizeof(cur_shape));
+}
 
+static void do_move_x(int off_x)
+{
+	int new_x = cur_x + off_x;
+	if (shape_fits(new_x, cur_y))
+		cur_x = new_x;
+}
+
+static void do_move_down()
+{
+	cur_y --;
 	if (shape_landed()) {
 		// current piece has hit the bottom; now out of play
 		burn_shape();
 		new_shape();
+	}
+}
+
+static void glut_special(int key, int x, int y)
+{
+	switch (key) {
+		case GLUT_KEY_UP: do_rotate(); break;
+		case GLUT_KEY_LEFT: do_move_x(-1); break;
+		case GLUT_KEY_RIGHT: do_move_x(+1); break;
+		case GLUT_KEY_DOWN: do_move_down(); break;
+		default: return;
 	}
 
 	glutPostRedisplay();
@@ -172,7 +197,7 @@ static void draw_shape()
 	for (int x=0; x<4; x++) {
 		for (int y=0; y<4; y++) {
 			if (cur_shape[x][y]) {
-				draw_block(cur_x-x, cur_y-y);
+				draw_block(cur_x+x, cur_y-y);
 			}
 		}
 	}
