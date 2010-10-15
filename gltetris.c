@@ -8,6 +8,8 @@
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
+#define MSEC_PER_SEC 1000
+
 #define GLUT_KEY_ESC 27
 
 #define GRID_SIZE 20.0f
@@ -25,10 +27,18 @@ static int cur_shape[4][4];
 
 static int game_over = 0;
 
+static int game_time_unit = 0; // time (in usecs) between automatic dropping
+
+static int move_number = 0;
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 static void new_game();
 static int  shape_fits(int x, int y);
+
+static void glut_timer_callback(int value);
+static void glut_keyboard_callback(unsigned char key, int x, int y);
+static void glut_specialkey_callback(int key, int x, int y);
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -192,7 +202,7 @@ static void burn_shape()
 	}
 }
 
-static void glut_keyboard(unsigned char key, int x, int y)
+static void glut_keyboard_callback(unsigned char key, int x, int y)
 {
 	switch (key) {
 		case GLUT_KEY_ESC: exit(0); break;
@@ -225,9 +235,12 @@ static void do_move_down()
 		new_shape();
 	}
 	cur_y --;
+	move_number ++;
+	// reschedule auto-drop timer
+	glutTimerFunc(game_time_unit, glut_timer_callback, move_number);
 }
 
-static void glut_special(int key, int x, int y)
+static void glut_specialkey_callback(int key, int x, int y)
 {
 	if (game_over)
 		return;
@@ -287,9 +300,21 @@ static void display()
 	glFlush();
 }
 
-static void idle()
+static void glut_timer_callback(int value)
 {
-  //glutPostRedisplay();
+	if (game_over)
+		return;
+
+	if (value != move_number)
+		return;
+
+	do_move_down();
+
+	// increase the game speed!
+	game_time_unit -= MSEC_PER_SEC / 100;
+
+	glutTimerFunc(game_time_unit, glut_timer_callback, move_number);
+	glutPostRedisplay();
 }
 
 static void new_game()
@@ -299,6 +324,9 @@ static void new_game()
 	memset(grid_fill, sizeof(grid_fill), 0);
 	memset(cur_shape, sizeof(cur_shape), 0);
 	new_shape();
+	move_number = 0;
+	game_time_unit = MSEC_PER_SEC;
+	glutTimerFunc(game_time_unit, glut_timer_callback, move_number);
 	glutPostRedisplay();
 }
 
@@ -323,9 +351,8 @@ int main(int argc, char *argv[])
 	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 	glutCreateWindow("gltetris");
 	glutDisplayFunc(display);
-	glutKeyboardFunc(glut_keyboard);
-	glutSpecialFunc(glut_special);
-	glutIdleFunc(idle);
+	glutKeyboardFunc(glut_keyboard_callback);
+	glutSpecialFunc(glut_specialkey_callback);
 	init();
 	glutMainLoop();
 	return 0;
