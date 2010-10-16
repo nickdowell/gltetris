@@ -1,4 +1,8 @@
+#ifdef __APPLE__
+#include <GLUT/glut.h>
+#else
 #include <GL/glut.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -212,7 +216,6 @@ static int game_clear_rows()
 
 	if (rows_cleared) {
 		int points = (1 << (rows_cleared - 1));
-		printf("%d points for %d rows\n", points, rows_cleared);
 		game_score += points;
 		game_update_title();
 	}
@@ -319,7 +322,10 @@ static void glut_display_callback()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glColor3f(1.0, 1.0, 1.0);
+	if (game_over)
+		glColor3f(1.0, 0.0, 0.0);
+	else
+		glColor3f(1.0, 1.0, 1.0);
 	for (int x=0; x<GRID_WIDTH; x++) {
 		for (int y=0; y<GRID_HEIGHT; y++) {
 			if (grid_fill[x][y]) {
