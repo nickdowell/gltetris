@@ -360,7 +360,7 @@ static void glut_timer_callback(int value)
 
 static void game_update_title()
 {
-	char title[32] = "";
+	char title[64] = "";
 	sprintf(title, "TETRIS   score = %d  %s", game_score, game_over ? "[ GAME OVER ]" : "");
 	glutSetWindowTitle(title);
 }
