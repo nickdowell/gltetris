@@ -22,6 +22,17 @@
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
+typedef struct { float r; float g; float b; } color_t;
+static color_t colors[] = {
+	{ 229.0 / 255.0,  59.0 / 255.0,  76.0 / 255.0 },
+	{ 242.0 / 255.0, 135.0 / 255.0,   0.0 / 255.0 },
+	{ 153.0 / 255.0, 140.0 / 255.0,   0.0 / 255.0 },
+	{  36.0 / 255.0,  89.0 / 255.0,  38.0 / 255.0 },
+	{  46.0 / 255.0,  36.0 / 255.0,  51.0 / 255.0 },
+};
+
+#define NUM_COLORS sizeof(colors) / sizeof(colors[0])
+
 static int grid_fill [GRID_WIDTH] [GRID_HEIGHT];
 
 static int cur_x = 0;
@@ -60,8 +71,18 @@ static void rotate_shape()
 	}
 }
 
+static void set_shape_color(int colorIndex)
+{
+	for (int y=0; y<4; y++) {
+		for (int x=0; x<4; x++) {
+			cur_shape[x][y] *= colorIndex;
+		}
+	}
+}
+
 static void new_shape()
 {
+	int color = 0;
 	switch (rand() % 7) {
 		case 0:
 			{
@@ -72,6 +93,7 @@ static void new_shape()
 					{ 0, 1, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
+				color = 1;
 			}
 			break;
 		case 1:
@@ -83,6 +105,7 @@ static void new_shape()
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
+				color = 2;
 			}
 			break;
 		case 2:
@@ -94,6 +117,7 @@ static void new_shape()
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
+				color = 3;
 			}
 			break;
 		case 3:
@@ -105,6 +129,7 @@ static void new_shape()
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
+				color = 4;
 			}
 			break;
 		case 4:
@@ -116,6 +141,7 @@ static void new_shape()
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
+				color = 4;
 			}
 			break;
 		case 5:
@@ -127,6 +153,7 @@ static void new_shape()
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
+				color = 5;
 			}
 			break;
 		case 6:
@@ -138,10 +165,12 @@ static void new_shape()
 					{ 0, 0, 0, 0 },
 				};
 				memcpy(cur_shape, shape, sizeof(shape));
+				color = 5;
 			}
 			break;
 	}
 
+	set_shape_color(color);
 	rotate_shape();
 
 	cur_x = GRID_WIDTH / 2 - 2;
@@ -164,7 +193,7 @@ static int shape_fits(int off_x, int off_y)
 				int abs_y = off_y - y;
 				if ((abs_y < 0 || abs_y >= GRID_HEIGHT) ||
 					(abs_x < 0 || abs_x >= GRID_WIDTH) ||
-					(grid_fill[abs_x][abs_y] == 1))
+					(grid_fill[abs_x][abs_y]))
 					return 0;
 			}
 		}
@@ -228,7 +257,7 @@ static void burn_shape()
 	for (int x=0; x<4; x++) {
 		for (int y=0; y<4; y++) {
 			if (cur_shape[x][y]) {
-				grid_fill[cur_x+x][cur_y-y] = 1;
+				grid_fill[cur_x+x][cur_y-y] = cur_shape[x][y];
 			}
 		}
 	}
@@ -293,8 +322,9 @@ static void glut_specialkey_callback(int key, int x, int y)
 	glutPostRedisplay();
 }
 
-static void draw_block(int x, int y)
+static void draw_block(int x, int y, int c)
 {
+	glColor3f(colors[c-1].r, colors[c-1].g, colors[c-1].b);
 	float x1 = x  * GRID_SIZE;
 	float x2 = x1 + GRID_SIZE;
 	float y1 = y  * GRID_SIZE;
@@ -312,7 +342,7 @@ static void draw_shape()
 	for (int x=0; x<4; x++) {
 		for (int y=0; y<4; y++) {
 			if (cur_shape[x][y]) {
-				draw_block(cur_x+x, cur_y-y);
+				draw_block(cur_x+x, cur_y-y, cur_shape[x][y]);
 			}
 		}
 	}
@@ -322,20 +352,15 @@ static void glut_display_callback()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	if (game_over)
-		glColor3f(1.0, 0.0, 0.0);
-	else
-		glColor3f(1.0, 1.0, 1.0);
 	for (int x=0; x<GRID_WIDTH; x++) {
 		for (int y=0; y<GRID_HEIGHT; y++) {
 			if (grid_fill[x][y]) {
-				draw_block(x, y);
+				draw_block(x, y, grid_fill[x][y]);
 			}
 		}
 	}
 	
 	if (!game_over) {
-		glColor3f(1.0, 0.0, 0.0);
 		draw_shape();
 	}
 
