@@ -364,6 +364,18 @@ static void glut_display_callback()
 		draw_shape();
 	}
 
+	glColor3f(0.2f, 0.2f, 0.2f);
+	glBegin(GL_LINES);
+	for (int x=1; x<GRID_WIDTH; x++) {
+		glVertex2f(x * GRID_SIZE, 0.0f);
+		glVertex2f(x * GRID_SIZE, GRID_HEIGHT * GRID_SIZE);
+	}
+	for (int y=1; y<GRID_HEIGHT; y++) {
+		glVertex2f(0.0f,                    y * GRID_SIZE);
+		glVertex2f(GRID_HEIGHT * GRID_SIZE, y * GRID_SIZE);
+	}
+	glEnd();
+
 	glFlush();
 
 	glutSwapBuffers();
